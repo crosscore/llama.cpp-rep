@@ -1,42 +1,53 @@
-# Complete Kotlin Android LLM App Implementation Guide
+# JetPack Compose版 Android LLMアプリ実装ガイド
 
-このガイドでは、LlamaモデルをAndroidアプリケーションに統合するための完全な手順を提供します。
+このガイドでは、LlamaモデルをJetPack Composeを使用したAndroidアプリケーションに統合するための完全な手順を提供します。
 
 ## 1. プロジェクトのセットアップ
 
 1. Android Studioを開き、新しいプロジェクトを作成します。
-2. "Empty Activity"を選択します。
+2. "Empty Compose Activity"を選択します。
 3. プロジェクト名を設定します（例: "LLMChatApp"）。
 4. 言語として"Kotlin"を選択します。
 5. 最小SDKをAPI 21以上に設定します。
 
 ## 2. 依存関係の追加
 
-`app/build.gradle` ファイルを開き、以下の依存関係を追加します：
+`app/build.gradle.kts` ファイルを開き、以下の依存関係を追加します：
 
-```gradle
+```kotlin
 android {
     // 他の設定...
 
     buildFeatures {
-        viewBinding true
+        compose = true
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.4.3"
     }
 
     kotlinOptions {
-        jvmTarget = '1.8'
+        jvmTarget = "1.8"
     }
 }
 
 dependencies {
-    implementation 'androidx.core:core-ktx:1.7.0'
-    implementation 'androidx.appcompat:appcompat:1.4.1'
-    implementation 'com.google.android.material:material:1.5.0'
-    implementation 'androidx.constraintlayout:constraintlayout:2.1.3'
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.5.2'
-    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.4.0'
-    testImplementation 'junit:junit:4.13.2'
-    androidTestImplementation 'androidx.test.ext:junit:1.1.3'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
+    implementation("androidx.core:core-ktx:1.9.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.1")
+    implementation("androidx.activity:activity-compose:1.7.0")
+    implementation(platform("androidx.compose:compose-bom:2023.03.00"))
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-graphics")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.compose.material3:material3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4")
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+    androidTestImplementation(platform("androidx.compose:compose-bom:2023.03.00"))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-tooling")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
 ```
 
@@ -49,46 +60,7 @@ dependencies {
 <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
 ```
 
-## 4. レイアウトの作成
-
-`app/src/main/res/layout/activity_main.xml` ファイルを以下の内容で作成または更新します：
-
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp">
-
-    <Button
-        android:id="@+id/downloadButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Download GGUF" />
-
-    <EditText
-        android:id="@+id/questionInput"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Enter your question" />
-
-    <Button
-        android:id="@+id/askButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Ask" />
-
-    <TextView
-        android:id="@+id/answerOutput"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp" />
-
-</LinearLayout>
-```
-
-## 5. JNIの設定（LLM推論用）
+## 4. JNIの設定（LLM推論用）
 
 1. `app/src/main/cpp/` ディレクトリを作成します。
 
@@ -136,34 +108,153 @@ target_link_libraries(native-lib
                       ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libllama.so)
 ```
 
-4. `app/build.gradle` ファイルに以下を追加します：
+4. `app/build.gradle.kts` ファイルに以下を追加します：
 
-```gradle
+```kotlin
 android {
     // ...
     externalNativeBuild {
         cmake {
-            path file('src/main/cpp/CMakeLists.txt')
+            path = file("src/main/cpp/CMakeLists.txt")
         }
     }
 }
 ```
 
-## 6. Llama.cppライブラリの追加
+## 5. Llama.cppライブラリの追加
 
 1. ビルド済みの `libllama.so` ファイルを `app/src/main/jniLibs/arm64-v8a/` ディレクトリに配置します。
 
 2. Llama.cppのヘッダーファイル（`llama.h`）を `app/src/main/cpp/llama.cpp/` ディレクトリに配置します。
 
-## 7. GGUFファイルの準備
+## 6. GGUFファイルの準備
 
 アプリケーションがGGUFファイルをダウンロードできるようにしますが、開発中はファイルを手動でデバイスに配置することもできます。ファイルは通常、`/sdcard/Download/` ディレクトリに配置します。
+
+## 7. MainActivity.kt の実装
+
+`MainActivity.kt` ファイルを以下の内容で更新します：
+
+```kotlin
+import android.app.DownloadManager
+import android.content.Context
+import android.net.Uri
+import android.os.Bundle
+import android.os.Environment
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.io.File
+
+class MainActivity : ComponentActivity() {
+
+    companion object {
+        private const val GGUF_URL = "https://huggingface.co/QuantFactory/TinySlime-1.1B-Chat-v1.0-GGUF/resolve/main/TinySlime-1.1B-Chat-v1.0.Q4_0.gguf"
+        private const val GGUF_FILENAME = "TinySlime-1.1B-Chat-v1.0.Q4_0.gguf"
+
+        init {
+            System.loadLibrary("native-lib")
+        }
+    }
+
+    private external fun performLLMInference(input: String): String
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            MaterialTheme {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    LLMChatApp()
+                }
+            }
+        }
+    }
+
+    @Composable
+    fun LLMChatApp() {
+        val context = LocalContext.current
+        var question by remember { mutableStateOf("") }
+        var answer by remember { mutableStateOf("") }
+        var isDownloaded by remember { mutableStateOf(checkIfGGUFDownloaded(context)) }
+        val coroutineScope = rememberCoroutineScope()
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Button(
+                onClick = {
+                    if (!isDownloaded) {
+                        downloadGGUF(context)
+                    }
+                },
+                enabled = !isDownloaded
+            ) {
+                Text(if (isDownloaded) "Already Downloaded" else "Download GGUF")
+            }
+
+            TextField(
+                value = question,
+                onValueChange = { question = it },
+                label = { Text("Enter your question") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Button(
+                onClick = {
+                    coroutineScope.launch(Dispatchers.Default) {
+                        val result = performLLMInference(question)
+                        answer = result
+                    }
+                },
+                enabled = isDownloaded
+            ) {
+                Text("Ask")
+            }
+
+            Text(
+                text = answer,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+
+    private fun downloadGGUF(context: Context) {
+        val request = DownloadManager.Request(Uri.parse(GGUF_URL))
+            .setTitle("Downloading GGUF file")
+            .setDescription("Downloading $GGUF_FILENAME")
+            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, GGUF_FILENAME)
+
+        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        downloadManager.enqueue(request)
+    }
+
+    private fun checkIfGGUFDownloaded(context: Context): Boolean {
+        val file = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), GGUF_FILENAME)
+        return file.exists()
+    }
+}
+```
 
 ## 8. アプリのビルドと実行
 
 1. Android Studioでプロジェクトを同期します。
 2. プロジェクトをビルドします。
-3. エミュレータまたは実機でアプリを実行します。
+3. エミュレータまたは実機（Pixel 8など）でアプリを実行します。
 
 ## 注意点
 
@@ -171,3 +262,4 @@ android {
 - Llama.cppの統合には、さらなる調整やオプティマイゼーションが必要になる可能性があります。
 - 大きなモデルファイルの扱いには注意が必要です。ユーザーのデバイスのストレージ容量を考慮してください。
 - LLM推論は計算負荷が高いため、バッテリー消費や端末の発熱に注意してください。
+- Jetpack Composeを使用することで、UIの構築がより宣言的になり、状態管理が簡単になります。ただし、Composeに慣れていない場合は、学習曲線があるかもしれません。
