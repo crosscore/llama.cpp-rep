@@ -104,9 +104,9 @@ class MainActivity : ComponentActivity() {
         val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
         downloadManager.enqueue(request)
     }
-
+    
     private fun checkIfGGUFDownloaded(context: Context): Boolean {
-        val file = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), GGUF_FILENAME)
+        val file = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), GGUF_FILENAME)
         return file.exists()
     }
 }
